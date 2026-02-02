@@ -17,7 +17,8 @@ export default function Directory({ userData }) {
 
     const filteredMembers = members.filter(m =>
         m.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.company?.toLowerCase().includes(searchTerm.toLowerCase())
+        m.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        m.jobTitle?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -30,30 +31,48 @@ export default function Directory({ userData }) {
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                        className="pl-10 pr-4 py-2 border rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                        placeholder="Buscar miembro..."
+                        className="pl-10 pr-4 py-2 border rounded-xl bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-100 w-64"
+                        placeholder="Buscar por nombre, cargo o empresa..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
                 </div>
             </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMembers.map((member) => (
-                    <div key={member.uid} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500">
-                            {member.displayName?.charAt(0)}
+                    <div key={member.uid} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-slate-50 flex-shrink-0 overflow-hidden border border-slate-100 flex items-center justify-center">
+                            {member.photoUrl ? (
+                                <img src={member.photoUrl} alt={member.displayName} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="font-bold text-slate-400 text-xl">{member.displayName?.charAt(0)}</span>
+                            )}
                         </div>
-                        <div>
-                            <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
-                                {member.displayName}
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <h4 className="font-bold text-slate-900 truncate">
+                                    {member.displayName}
+                                </h4>
                                 <HelmetBadge rank={member.rank} size={16} />
-                            </h4>
-                            <p className="text-xs text-slate-500">{member.company || 'Independiente'}</p>
+                            </div>
+
+                            {member.jobTitle && (
+                                <p className="text-sm font-medium text-slate-700 truncate mb-0.5">{member.jobTitle}</p>
+                            )}
+
+                            <p className="text-xs text-slate-500 truncate flex items-center gap-1">
+                                {member.company || 'Profesional Independiente'}
+                            </p>
                         </div>
                     </div>
                 ))}
             </div>
+            {filteredMembers.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                    No se encontraron miembros para "{searchTerm}"
+                </div>
+            )}
         </div>
     );
 }
