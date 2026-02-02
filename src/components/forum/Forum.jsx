@@ -59,10 +59,14 @@ export default function Forum({ user, userData, addPoints }) {
     useEffect(() => {
         if (isCreatingPost && forumCategory === 'presentations' && !newPostContent) {
             setNewPostContent(
-                `**Nombre:** ${userData.displayName || ''}\n` +
-                `**Cargo:** ${userData.jobTitle || ''}\n` +
-                `**Empresa:** ${userData.company || ''}\n` +
-                `**Descripción:** ¡Hola a todos! Soy...`
+                `Hola Colegas,\n\n` +
+                `**Nombre:** ${userData.displayName || '[Tu nombre aquí]'} **Especialidad:** [Ingeniero Constructor, Constructor Civil, Estudiante, Profesor]\n\n` +
+                `**Mi Background:** [Breve descripción de tu trayectoria profesional o académica. Ej: Me dedico a la inspección técnica de obras y actualmente estoy aprendiendo programación para automatizar reportes.]\n\n` +
+                `**Herramientas que domino:**\n\n` +
+                `[Herramienta 1]\n\n` +
+                `[Herramienta 2]\n\n` +
+                `**Objetivo en el foro:** [Ej: Aportar con mis conocimientos en normativa chilena y aprender sobre seguridad informática.]\n\n` +
+                `Un saludo.`
             );
             setNewPostTitle(`Presentación: ${userData.displayName || ''}`);
         } else if (isCreatingPost && forumCategory !== 'presentations' && newPostContent.startsWith('**Nombre:**')) {
