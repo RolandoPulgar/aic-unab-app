@@ -68,7 +68,11 @@ export default function Directory({ userData }) {
                             {userData?.isAdmin && (
                                 <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col gap-1">
                                     {member.email && <p className="text-xs text-blue-600 truncate">📧 {member.email}</p>}
-                                    {member.phone && <p className="text-xs text-green-600 truncate">📞 {member.phone}</p>}
+                                    {member.phone && (
+                                        <p className="text-xs text-green-600 truncate">
+                                            📞 {member.phone.startsWith('+') ? member.phone : `+56 ${member.phone}`}
+                                        </p>
+                                    )}
                                 </div>
                             )}
                         </div>
