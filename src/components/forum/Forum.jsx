@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Plus, X, ChevronRight, ChevronLeft, User, Clock,
     Pencil, Trash2, Save, ThumbsUp, Send, Sparkles, Loader2,
-    ScrollText, Briefcase, FileQuestion, GraduationCap, MessageSquare
+    ScrollText, Briefcase, FileQuestion, GraduationCap, MessageSquare, Pin
 } from 'lucide-react';
 import {
     collection, addDoc, onSnapshot, query, orderBy,
@@ -13,8 +13,10 @@ import { db, appId } from '../../services/firebase';
 import { callGemini } from '../../services/ai';
 
 const FORUM_CATEGORIES = [
-    { id: 'rules', label: 'Reglas y Presentaciones', icon: ScrollText, restricted: true },
-    { id: 'jobs', label: 'Empleos y Negocios', icon: Briefcase, restricted: true },
+    { id: 'rules', label: 'Reglas y Anuncios', icon: ScrollText, restricted: true }, // admin only usually, but let's keep logic simple
+    { id: 'presentations', label: 'Presentaciones', icon: User, restricted: false },
+    { id: 'jobs', label: 'Empleos', icon: Briefcase, restricted: true },
+    { id: 'business', label: 'Negocios', icon: Briefcase, restricted: true },
     { id: 'data', label: 'Solicitud de Datos', icon: FileQuestion, restricted: true },
     { id: 'students', label: 'Zona Estudiantes', icon: GraduationCap, restricted: false },
 ];
@@ -53,11 +55,38 @@ export default function Forum({ user, userData, addPoints }) {
         }
     }, [isStudent]);
 
+    // Aplicar plantilla cuando se abre el modal de creación en Presentaciones
+    useEffect(() => {
+        if (isCreatingPost && forumCategory === 'presentations' && !newPostContent) {
+            setNewPostContent(
+                `**Nombre:** ${userData.displayName || ''}\n` +
+                `**Cargo:** ${userData.jobTitle || ''}\n` +
+                `**Empresa:** ${userData.company || ''}\n` +
+                `**Descripción:** ¡Hola a todos! Soy...`
+            );
+            setNewPostTitle(`Presentación: ${userData.displayName || ''}`);
+        } else if (isCreatingPost && forumCategory !== 'presentations' && newPostContent.startsWith('**Nombre:**')) {
+            // Limpiar si cambia de categoría y tenía la plantilla
+            setNewPostContent('');
+            setNewPostTitle('');
+        }
+    }, [isCreatingPost, forumCategory, userData]);
+
     // Listeners
     useEffect(() => {
+        // Ordenamos por fecha descendente en la query básica
         const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts'), orderBy('createdAt', 'desc'));
         const unsubscribe = onSnapshot(q, (s) => {
             const newPosts = s.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            // Ordenamiento manual: Primero fijados (isPinned), luego fecha
+            newPosts.sort((a, b) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                // Si ambos son iguales en pin, ya vienen ordenados por fecha de la query, pero aseguramos
+                return b.createdAt - a.createdAt;
+            });
+
             setPosts(newPosts);
             if (selectedPost) {
                 const updated = newPosts.find(p => p.id === selectedPost.id);
@@ -65,9 +94,9 @@ export default function Forum({ user, userData, addPoints }) {
             }
         });
         return () => unsubscribe();
-    }, [selectedPost?.id]); // Dependency on selectedPost.id to refresh it if needed, though updated logic inside handles it
+    }, [selectedPost?.id]);
 
-    const getCategoryCount = (catId) => catId === 'rules' ? posts.filter(p => p.category === 'rules' || !p.category).length : posts.filter(p => p.category === catId).length;
+    const getCategoryCount = (catId) => posts.filter(p => p.category === catId).length;
 
     const handlePostSubmit = async (e) => {
         e.preventDefault();
@@ -76,7 +105,8 @@ export default function Forum({ user, userData, addPoints }) {
             title: newPostTitle, content: newPostContent,
             authorName: userData.displayName, authorRank: userData.rank, authorId: user.uid,
             authorCompany: userData.company, authorPhoto: userData.photoUrl || '',
-            category: forumCategory, createdAt: serverTimestamp(), likes: 0, likesBy: [], replies: []
+            category: forumCategory, createdAt: serverTimestamp(), likes: 0, likesBy: [], replies: [],
+            isPinned: false
         });
         setNewPostTitle(''); setNewPostContent(''); setIsCreatingPost(false); await addPoints(10);
     };
@@ -86,6 +116,11 @@ export default function Forum({ user, userData, addPoints }) {
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', postId));
             setSelectedPost(null);
         }
+    };
+
+    const handlePinPost = async (post) => {
+        const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', post.id);
+        await updateDoc(postRef, { isPinned: !post.isPinned });
     };
 
     const handleLikePost = async (post) => {
