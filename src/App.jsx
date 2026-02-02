@@ -156,7 +156,7 @@ function AppContent() {
         {view === 'forum' && <Forum user={user} userData={userData} addPoints={addPoints} />}
         {view === 'showcase' && <Showcase userData={userData} showcaseItems={showcaseItems} />}
         {view === 'tenders' && <Tenders userData={userData} tenders={tenders} />}
-        {view === 'gallery' && <Gallery galleryImages={galleryImages} />}
+        {view === 'gallery' && <Gallery userData={userData} galleryImages={galleryImages} />}
         {view === 'members' && <Directory userData={userData} />}
       </main>
     </div>
