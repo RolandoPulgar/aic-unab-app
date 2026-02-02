@@ -270,7 +270,7 @@ export default function Forum({ user, userData, addPoints }) {
                         ))}
                     </div>
 
-                    {posts.filter(p => p.category === forumCategory || (!p.category && forumCategory === 'rules')).length === 0 && (
+                    {posts.filter(p => p.category === forumCategory).length === 0 && (
                         <div className="py-20 text-center">
                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                                 <MessageSquare size={40} />
@@ -286,6 +286,7 @@ export default function Forum({ user, userData, addPoints }) {
                     <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mb-6 relative">
                         <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
                             <div>
+                                {selectedPost.isPinned && <span className="mb-2 inline-flex items-center gap-1 text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider"><Pin size={10} /> Tema Fijado</span>}
                                 <h1 className="text-2xl font-bold text-slate-900 mb-2">{selectedPost.title}</h1>
                                 <div className="flex items-center gap-2 text-sm text-slate-500">
                                     <User size={14} /> <span className="font-bold">{selectedPost.authorName}</span>
@@ -294,6 +295,11 @@ export default function Forum({ user, userData, addPoints }) {
                                 </div>
                             </div>
                             <div className="flex gap-2">
+                                {userData.isAdmin && (
+                                    <button onClick={() => handlePinPost(selectedPost)} className={`p-2 rounded-lg transition ${selectedPost.isPinned ? 'bg-purple-100 text-purple-600 hover:bg-purple-200' : 'bg-slate-100 text-slate-400 hover:text-purple-600'}`} title={selectedPost.isPinned ? "Desfijar" : "Fijar tema"}>
+                                        <Pin size={18} fill={selectedPost.isPinned ? "currentColor" : "none"} />
+                                    </button>
+                                )}
                                 {(userData.isAdmin || selectedPost.authorId === user.uid) && !editingId && (
                                     <>
                                         <button onClick={() => { setEditingId(selectedPost.id); setEditTitle(selectedPost.title); setEditText(selectedPost.content); }} className="p-2 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-lg transition"><Pencil size={18} /></button>
