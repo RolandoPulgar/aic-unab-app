@@ -138,7 +138,7 @@ export default function Forum({ user, userData, addPoints }) {
 
     // Función auxiliar para obtener participantes únicos (limitado a 3)
     const getParticipantPhotos = (replies) => {
-        if (!replies) return [];
+        if (!replies || !Array.isArray(replies)) return [];
         const photos = replies.filter(r => r.authorPhoto).map(r => r.authorPhoto);
         return [...new Set(photos)].slice(0, 3);
     };
@@ -199,11 +199,10 @@ export default function Forum({ user, userData, addPoints }) {
                                     <div className="flex-1 min-w-0 pt-1">
                                         <h4 className="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition leading-tight mb-1">{post.title || "Sin título"}</h4>
                                         <div className="flex items-center gap-2 text-sm text-slate-400">
-                                            <span className="font-medium text-slate-600">por {post.authorName}</span>
-                                            {post.replies?.length > 0 && (
+                                            <span className="font-medium text-slate-600">por {post.authorName || 'Anónimo'}</span>
+                                            {post.replies?.length > 0 && post.replies[post.replies.length - 1]?.date ? (
                                                 <span className="text-slate-300">• último comentario hace {formatDate(new Date(post.replies[post.replies.length - 1].date))}</span>
-                                            )}
-                                            {!post.replies?.length && (
+                                            ) : (
                                                 <span>• {formatDate(post.createdAt)}</span>
                                             )}
                                         </div>
@@ -217,7 +216,7 @@ export default function Forum({ user, userData, addPoints }) {
                                                 <div className="flex -space-x-2 mr-2">
                                                     {getParticipantPhotos(post.replies).map((photo, i) => (
                                                         <div key={i} className="w-6 h-6 rounded-full border border-white overflow-hidden bg-slate-100">
-                                                            <img src={photo} alt="" className="w-full h-full object-cover" />
+                                                            {photo ? <img src={photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-300"></div>}
                                                         </div>
                                                     ))}
                                                 </div>
