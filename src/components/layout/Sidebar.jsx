@@ -31,7 +31,13 @@ export default function Sidebar({ view, setView, userData, logout, openProfileEd
             </nav>
             <div className="p-4 border-t border-slate-800">
                 <button onClick={openProfileEditor} className="w-full flex items-center gap-3 mb-4 p-2 rounded hover:bg-slate-800 text-left">
-                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold">{userData.displayName?.charAt(0)}</div>
+                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold overflow-hidden border border-slate-600">
+                        {userData.photoUrl ? (
+                            <img src={userData.photoUrl} alt="Perfil" className="w-full h-full object-cover" />
+                        ) : (
+                            userData.displayName?.charAt(0)
+                        )}
+                    </div>
                     <div className="overflow-hidden flex-1"><p className="text-sm font-medium text-white truncate">{userData.displayName}</p><p className="text-xs text-slate-500 capitalize">{userData.rank}</p></div>
                     <Pencil size={14} className="text-slate-500" />
                 </button>

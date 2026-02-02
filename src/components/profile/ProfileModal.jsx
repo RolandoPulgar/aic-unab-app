@@ -42,7 +42,10 @@ export default function ProfileModal({ userData, onClose, onUpdate }) {
         };
 
         try {
-            await updateProfile(auth.currentUser, { displayName: fullName, photoURL: photoUrl });
+            // No actualizamos auth.currentUser.photoURL porque Base64 es muy largo para Firebase Auth.
+            // Usamos Firestore como fuente de verdad para la imagen.
+            await updateProfile(auth.currentUser, { displayName: fullName });
+
             await updateDoc(doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'profile', 'info'), update);
 
             // Actualizar datos públicos necesarios para el directorio
