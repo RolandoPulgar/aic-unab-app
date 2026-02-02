@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { HardHat, CheckCircle2, ChevronRight, Building2, Users, Briefcase, GraduationCap, Trophy } from 'lucide-react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, db, appId } from '../../services/firebase';
 
@@ -25,6 +25,10 @@ export default function LandingPage({ onLoginSuccess }) {
             } else if (authMode === 'register') {
                 const cred = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
                 const fullName = `${regName} ${regSurname}`;
+
+                // Enviar correo de verificación
+                await sendEmailVerification(cred.user);
+
                 await updateProfile(cred.user, { displayName: fullName });
                 const isStudent = regType === 'Estudiante';
                 const newProfile = {
@@ -35,6 +39,8 @@ export default function LandingPage({ onLoginSuccess }) {
                 };
                 await setDoc(doc(db, 'artifacts', appId, 'users', cred.user.uid, 'profile', 'info'), newProfile);
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'members_index', cred.user.uid), { displayName: fullName, company: newProfile.company, rank: newProfile.rank, photoUrl: '', uid: cred.user.uid });
+
+                alert('Cuenta creada exitosamente. Hemos enviado un correo de verificación a tu email, por favor revísalo para continuar.');
             } else if (authMode === 'recovery') {
                 await sendPasswordResetEmail(auth, regEmail);
                 alert('Correo enviado. Revisa tu bandeja de entrada.');

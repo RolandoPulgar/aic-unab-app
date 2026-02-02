@@ -123,6 +123,29 @@ function AppContent() {
   if (!userData && view === 'landing') {
     return <LandingPage />;
   }
+  if (user && !user.emailVerified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
+        <div className="bg-white p-8 rounded-3xl shadow-xl max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" /></svg>
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Verifica tu Correo</h2>
+          <p className="text-slate-600 mb-6 font-medium">Hemos enviado un enlace de confirmación a <br /><span className="text-slate-800 font-bold">{user.email}</span>.</p>
+          <p className="text-slate-400 text-sm mb-8">Por favor valida tu cuenta para acceder a la Red de Ingenieros.</p>
+
+          <div className="space-y-3">
+            <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition">
+              Ya verifiqué mi correo
+            </button>
+            <button onClick={logout} className="w-full text-slate-400 font-bold py-2 hover:text-slate-600 transition">
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans text-slate-800">
