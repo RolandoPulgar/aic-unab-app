@@ -44,10 +44,10 @@ function getRandomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-const REGIONS = ['Tarapacá', 'Antofagasta', 'Atacama', 'Coquimbo', 'Valparaíso', 'Metropolitana', 'O\'Higgins', 'Maule', 'Ñuble', 'Biobío', 'Araucanía', 'Los Ríos', 'Los Lagos', 'Aysén', 'Magallanes'];
-const TYPES = ['Obra Pública', 'Vialidad', 'Edificación', 'Consultoría', 'Saneamiento', 'Infraestructura'];
-const PREFIXES = ['Mejoramiento', 'Conservación', 'Construcción', 'Reposición', 'Ampliación', 'Normalización', 'Diseño', 'Inspección Fiscal'];
-const OBJECTS = ['Camino Rural', 'Escuela Básica', 'CESFAM', 'Ruta 5', 'Plaza de Armas', 'Sistema APR', 'Puente', 'Edificio Consistorial', 'Borde Costero', 'Red de Alcantarillado'];
+const REGIONS = ['Metropolitana', 'Valparaíso', 'O\'Higgins'];
+const TYPES = ['Obra Pública', 'Vialidad', 'Edificación', 'Mantención', 'Remodelación', 'Infraestructura'];
+const PREFIXES = ['Construcción', 'Remodelación', 'Mantención', 'Mejoramiento', 'Reposición', 'Habilitación', 'Conservación', 'Restauración'];
+const OBJECTS = ['Escuela Básica', 'CESFAM', 'Ruta', 'Plaza', 'Sede Social', 'Pavimentación Participativa', 'Edificio Consistorial', 'Multicancha', 'Red de Alcantarillado', 'Jardín Infantil'];
 
 function generateTenders(count = 20) {
   const tenders = [];
