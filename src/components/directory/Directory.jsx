@@ -64,6 +64,13 @@ export default function Directory({ userData }) {
                             <p className="text-xs text-slate-500 truncate flex items-center gap-1">
                                 {member.company || 'Profesional Independiente'}
                             </p>
+
+                            {userData?.isAdmin && (
+                                <div className="mt-2 pt-2 border-t border-slate-100 flex flex-col gap-1">
+                                    {member.email && <p className="text-xs text-blue-600 truncate">📧 {member.email}</p>}
+                                    {member.phone && <p className="text-xs text-green-600 truncate">📞 {member.phone}</p>}
+                                </div>
+                            )}
                         </div>
                     </div>
                 ))}

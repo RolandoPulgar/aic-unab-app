@@ -50,7 +50,9 @@ export default function ProfileModal({ userData, onClose, onUpdate }) {
                 displayName: fullName,
                 company: update.company,
                 jobTitle: update.jobTitle,
-                photoUrl: update.photoUrl
+                photoUrl: update.photoUrl,
+                phone: update.phone,
+                email: auth.currentUser.email
             });
 
             onUpdate(update);
@@ -85,6 +87,11 @@ export default function ProfileModal({ userData, onClose, onUpdate }) {
                             <label className="block text-xs font-bold text-slate-500 mb-1">Apellido</label>
                             <input className="w-full p-2 border rounded-lg text-sm" value={regSurname} onChange={e => setRegSurname(e.target.value)} placeholder="Apellido" />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                        <input className="w-full p-2 border rounded-lg text-sm bg-slate-100 text-slate-500" value={auth.currentUser?.email} disabled />
                     </div>
 
                     <div>
