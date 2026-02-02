@@ -27,11 +27,12 @@ export default function Tenders({ userData, tenders }) {
             <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200"><tr><th className="p-4">ID</th><th className="p-4">Nombre del Proyecto</th><th className="p-4">Región</th><th className="p-4">Tipo</th><th className="p-4">Monto Est.</th><th className="p-4">Cierre</th><th className="p-4">Acción</th></tr></thead>
+                        <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200"><tr><th className="p-4">ID</th><th className="p-4">Publicado</th><th className="p-4">Nombre del Proyecto</th><th className="p-4">Región</th><th className="p-4">Tipo</th><th className="p-4">Monto Est.</th><th className="p-4">Cierre</th><th className="p-4">Acción</th></tr></thead>
                         <tbody className="divide-y divide-slate-100">
                             {tenders.map((tender, i) => (
                                 <tr key={i} className="hover:bg-slate-50 transition">
                                     <td className="p-4 font-mono text-xs text-slate-500">{tender.id}</td>
+                                    <td className="p-4 text-slate-600 text-sm">{tender.publishDate || '-'}</td>
                                     <td className="p-4 font-semibold text-slate-800">{tender.title}</td>
                                     <td className="p-4 text-slate-600">{tender.region}</td>
                                     <td className="p-4"><span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold">{tender.type}</span></td>

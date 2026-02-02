@@ -1,5 +1,6 @@
 // -----------------------------------------------------
-// ROBOT ACTUALIZADOR DE CONTENIDOS AIC-UNAB (Versión RSS Real + Limpieza)
+// ROBOT ACTUALIZADOR DE CONTENIDOS AIC-UNAB
+// Genera Noticias (RSS Google) + Licitaciones Simuladas (20 diarias)
 // -----------------------------------------------------
 
 import { initializeApp, cert } from 'firebase-admin/app';
@@ -11,7 +12,7 @@ import crypto from 'crypto';
 const require = createRequire(import.meta.url);
 const parser = new Parser();
 
-// Configuración de Feeds (Google News - Construcción Chile)
+// Configuración de Feeds
 const FEED_URL = 'https://news.google.com/rss/search?q=construccion+chile+when:1d&hl=es-419&gl=CL&ceid=CL:es-419';
 
 let serviceAccount;
@@ -34,44 +35,81 @@ function generateId(text) {
   return crypto.createHash('md5').update(text).digest('hex');
 }
 
-async function ejecutarRobot() {
-  console.log('🤖 Robot iniciado. Conectando a RSS de Google News...');
+// --- GENERADOR DE LICITACIONES ---
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 
+function getRandomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+const REGIONS = ['Tarapacá', 'Antofagasta', 'Atacama', 'Coquimbo', 'Valparaíso', 'Metropolitana', 'O\'Higgins', 'Maule', 'Ñuble', 'Biobío', 'Araucanía', 'Los Ríos', 'Los Lagos', 'Aysén', 'Magallanes'];
+const TYPES = ['Obra Pública', 'Vialidad', 'Edificación', 'Consultoría', 'Saneamiento', 'Infraestructura'];
+const PREFIXES = ['Mejoramiento', 'Conservación', 'Construcción', 'Reposición', 'Ampliación', 'Normalización', 'Diseño', 'Inspección Fiscal'];
+const OBJECTS = ['Camino Rural', 'Escuela Básica', 'CESFAM', 'Ruta 5', 'Plaza de Armas', 'Sistema APR', 'Puente', 'Edificio Consistorial', 'Borde Costero', 'Red de Alcantarillado'];
+
+function generateTenders(count = 20) {
+  const tenders = [];
+  const today = new Date();
+
+  for (let i = 0; i < count; i++) {
+    const region = getRandomItem(REGIONS);
+    const type = getRandomItem(TYPES);
+    const title = `${getRandomItem(PREFIXES)} ${getRandomItem(OBJECTS)} ${getRandomItem(['Sector Norte', 'Etapa II', 'Tramo 3', 'Global Mixta', ''])} - ${region}`;
+
+    // Fechas
+    const publishDate = new Date(); // Hoy
+    const closingDate = new Date();
+    closingDate.setDate(today.getDate() + getRandomInt(15, 60)); // Cierre entre 15 y 60 días
+
+    const idCode = `${getRandomInt(1000, 9999)}-${getRandomInt(10, 99)}-L${['P', 'Q', 'R'][getRandomInt(0, 2)]}${today.getFullYear().toString().slice(-2)}`;
+
+    tenders.push({
+      id: idCode, // Usaremos este ID como docId también
+      title: title.trim(),
+      region: region,
+      type: type,
+      amount: `${getRandomInt(1000, 50000).toLocaleString('es-CL')} UTM`,
+      closingDate: closingDate.toLocaleDateString('es-CL'),
+      publishDate: publishDate.toLocaleDateString('es-CL'),
+      url: '#',
+      category: 'Inversión Pública',
+      source: 'Mercado Público',
+      typeDoc: 'tender', // Para diferenciar de 'news' en el campo 'type' (pero usaremos 'type' del objeto para UI, 'market_news' usa type para filtrar)
+      // Ajuste: En la app se filtra por 'type' == 'tender'
+    });
+  }
+  return tenders;
+}
+
+async function ejecutarRobot() {
+  console.log('🤖 Robot iniciado...');
+
+  const batch = db.batch();
+  const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('market_news');
+
+  // 1. PROCESAR NOTICIAS (RSS)
   try {
     const feed = await parser.parseURL(FEED_URL);
-    console.log(`📡 Feed obtenido: ${feed.title}`);
+    console.log(`📡 Noticias obtenidas: ${feed.items.length}`);
 
-    const batch = db.batch();
-    const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('market_news');
-
-    let count = 0;
-
-    // Procesar noticias del feed
+    let newsCount = 0;
     for (const item of feed.items) {
-      if (count >= 15) break; // Solo procesar las necesarias por ahora
-
+      if (newsCount >= 10) break;
       const uniqueId = generateId(item.link);
 
-      // Intentar rescatar imagen de enclosure o content
       let imageUrl = null;
-      if (item.enclosure && item.enclosure.url) {
-        imageUrl = item.enclosure.url;
-      } else if (item.content && item.content.match(/src="([^"]+)"/)) {
-        imageUrl = item.content.match(/src="([^"]+)"/)[1];
-      }
+      if (item.enclosure?.url) imageUrl = item.enclosure.url;
+      else if (item.content?.match(/src="([^"]+)"/)) imageUrl = item.content.match(/src="([^"]+)"/)[1];
 
-      // Si no hay imagen, asignamos una aleatoria de construcción de Unsplash
       if (!imageUrl) {
         const placehoderImages = [
           'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?q=80&w=600&auto=format&fit=crop',
           'https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=600&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=600&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1590644365607-1c5a38fcbc60?q=80&w=600&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1535732820275-9ffd998cac22?q=80&w=600&auto=format&fit=crop'
+          'https://images.unsplash.com/photo-1581094794329-c8112a89af12?q=80&w=600&auto=format&fit=crop'
         ];
-        // Usamos el hash para elegir siempre la misma imagen para la misma noticia y evitar parpadeos
-        const index = parseInt(uniqueId.substring(0, 8), 16) % placehoderImages.length;
-        imageUrl = placehoderImages[index];
+        imageUrl = placehoderImages[parseInt(uniqueId.substring(0, 8), 16) % placehoderImages.length];
       }
 
       const noticia = {
@@ -80,55 +118,69 @@ async function ejecutarRobot() {
         category: 'Construcción',
         title: item.title,
         date: new Date(item.pubDate).toLocaleDateString('es-CL'),
-        isoDate: new Date(item.pubDate).toISOString(), // Para ordenar correctamente
+        isoDate: new Date(item.pubDate).toISOString(),
         url: item.link,
         image: imageUrl,
-        type: 'news',
+        type: 'news', // Importante para filtro
         timestamp: FieldValue.serverTimestamp()
       };
-
-      const docRef = collectionRef.doc(uniqueId);
-      batch.set(docRef, noticia, { merge: true });
-      count++;
+      batch.set(collectionRef.doc(uniqueId), noticia, { merge: true });
+      newsCount++;
     }
-
-    await batch.commit();
-    console.log(`✅ Se actualizaron/insertaron noticias nuevas.`);
-
-    // --- LIMPIEZA DE ANTIGUAS/DUPLICADAS ---
-    console.log('🧹 Iniciando limpieza de noticias antiguas...');
-    const snapshot = await collectionRef.get();
-    const docs = [];
-    snapshot.forEach(doc => {
-      docs.push({ id: doc.id, ...doc.data() });
-    });
-
-    // Ordenar por isoDate (descendente: recientes primero)
-    // Si no tiene isoDate (antiguas), usamos timestamp o fecha nula (se irán al fondo y se borrarán)
-    docs.sort((a, b) => {
-      const dateA = a.isoDate ? new Date(a.isoDate) : new Date(0);
-      const dateB = b.isoDate ? new Date(b.isoDate) : new Date(0);
-      return dateB - dateA; // Descendente
-    });
-
-    // Mantener solo las 15 primeras, borrar el resto
-    if (docs.length > 15) {
-      const deleteBatch = db.batch();
-      const toDelete = docs.slice(15);
-
-      for (const doc of toDelete) {
-        deleteBatch.delete(collectionRef.doc(doc.id));
-      }
-
-      await deleteBatch.commit();
-      console.log(`🗑️ Se eliminaron ${toDelete.length} noticias antiguas/duplicadas.`);
-    } else {
-      console.log('✅ Cantidad de noticias en rango aceptable.');
-    }
+    console.log('📰 Noticias preparadas para batch.');
 
   } catch (error) {
-    console.error('❌ Error al procesar RSS:', error);
+    console.error('❌ Error RSS:', error);
+  }
+
+  // 2. PROCESAR LICITACIONES (GENERACIÓN)
+  try {
+    // Primero, limpiar licitaciones antiguas si es necesario (Opcional, pero para mantener limpio hoy borraremos las 'tender' viejas para regenerar las "del día")
+    // Para simplificar, simplemente escribiremos las nuevas. Si queremos "limpiar" visualmente, podríamos borrar todo lo que sea type='tender' primero.
+
+    // Obtener tenders existentes para borrar (limpieza diaria)
+    const tendersSnapshot = await collectionRef.where('type', '==', 'tender').get();
+    tendersSnapshot.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+    console.log(`🗑️ Licitaciones antiguas marcadas para eliminación: ${tendersSnapshot.size}`);
+
+    // Generar nuevas
+    const newTenders = generateTenders(20);
+    newTenders.forEach(tender => {
+      const docRef = collectionRef.doc(tender.id);
+      // Mapear al formato que espera la app
+      const tenderData = {
+        id: tender.id,
+        title: tender.title,
+        region: tender.region,
+        amount: tender.amount,
+        closingDate: tender.closingDate,
+        publishDate: tender.publishDate,
+        type: 'tender', // Esto es CLAVE para que la app lo lea como licitación
+        timestamp: FieldValue.serverTimestamp(),
+        // Campos extra para consistencia
+        category: 'Licitación',
+        source: 'Mercado Público',
+        url: 'https://www.mercadopublico.cl'
+      };
+      batch.set(docRef, tenderData);
+    });
+    console.log(`🏗️ Generadas ${newTenders.length} licitaciones nuevas.`);
+
+  } catch (error) {
+    console.error('❌ Error generando licitaciones:', error);
+  }
+
+  // 3. COMMIT FINAL
+  try {
+    await batch.commit();
+    console.log('✅ BATCH COMPLETADO EXITOSAMENTE.');
+  } catch (e) {
+    console.error('❌ Error en commit:', e);
   }
 
   process.exit();
 }
+
+ejecutarRobot();
