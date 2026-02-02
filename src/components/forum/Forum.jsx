@@ -1,0 +1,263 @@
+import React, { useState, useEffect } from 'react';
+import {
+    Plus, X, ChevronRight, ChevronLeft, User, Clock,
+    Pencil, Trash2, Save, ThumbsUp, Send, Sparkles, Loader2,
+    ScrollText, Briefcase, FileQuestion, GraduationCap
+} from 'lucide-react';
+import {
+    collection, addDoc, onSnapshot, query, orderBy,
+    doc, updateDoc, increment, arrayUnion, arrayRemove,
+    deleteDoc, serverTimestamp
+} from 'firebase/firestore';
+import { db, appId } from '../../services/firebase';
+import { callGemini } from '../../services/ai';
+
+const FORUM_CATEGORIES = [
+    { id: 'rules', label: 'Reglas y Presentaciones', icon: ScrollText, restricted: true },
+    { id: 'jobs', label: 'Empleos y Negocios', icon: Briefcase, restricted: true },
+    { id: 'data', label: 'Solicitud de Datos', icon: FileQuestion, restricted: true },
+    { id: 'students', label: 'Zona Estudiantes', icon: GraduationCap, restricted: false },
+];
+
+const formatDate = (timestamp) => {
+    if (!timestamp) return '';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+
+const Icon = ({ icon: IconComponent, ...props }) => <IconComponent {...props} />;
+
+export default function Forum({ user, userData, addPoints }) {
+    const [posts, setPosts] = useState([]);
+    const [forumCategory, setForumCategory] = useState('rules');
+    const [selectedPost, setSelectedPost] = useState(null);
+    const [isCreatingPost, setIsCreatingPost] = useState(false);
+    const [newPostTitle, setNewPostTitle] = useState('');
+    const [newPostContent, setNewPostContent] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    // Edit states
+    const [editingId, setEditingId] = useState(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editText, setEditText] = useState('');
+    const [replyText, setReplyText] = useState('');
+    const [editingReplyId, setEditingReplyId] = useState(null);
+    const [editReplyText, setEditReplyText] = useState('');
+
+    const isStudent = userData?.role === 'Estudiante';
+    const visibleCategories = isStudent ? FORUM_CATEGORIES.filter(c => !c.restricted) : FORUM_CATEGORIES;
+
+    useEffect(() => {
+        if (isStudent && forumCategory !== 'students') {
+            setForumCategory('students');
+        }
+    }, [isStudent]);
+
+    // Listeners
+    useEffect(() => {
+        const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts'), orderBy('createdAt', 'desc'));
+        const unsubscribe = onSnapshot(q, (s) => {
+            const newPosts = s.docs.map(d => ({ id: d.id, ...d.data() }));
+            setPosts(newPosts);
+            if (selectedPost) {
+                const updated = newPosts.find(p => p.id === selectedPost.id);
+                if (updated) setSelectedPost(updated);
+            }
+        });
+        return () => unsubscribe();
+    }, [selectedPost?.id]); // Dependency on selectedPost.id to refresh it if needed, though updated logic inside handles it
+
+    const getCategoryCount = (catId) => catId === 'rules' ? posts.filter(p => p.category === 'rules' || !p.category).length : posts.filter(p => p.category === catId).length;
+
+    const handlePostSubmit = async (e) => {
+        e.preventDefault();
+        if (!newPostContent.trim() || !newPostTitle.trim()) return;
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts'), {
+            title: newPostTitle, content: newPostContent,
+            authorName: userData.displayName, authorRank: userData.rank, authorId: user.uid,
+            authorCompany: userData.company, authorPhoto: userData.photoUrl || '',
+            category: forumCategory, createdAt: serverTimestamp(), likes: 0, likesBy: [], replies: []
+        });
+        setNewPostTitle(''); setNewPostContent(''); setIsCreatingPost(false); await addPoints(10);
+    };
+
+    const handleDeletePost = async (postId) => {
+        if (window.confirm('¿Borrar tema completo?')) {
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', postId));
+            setSelectedPost(null);
+        }
+    };
+
+    const handleLikePost = async (post) => {
+        if (!user) return;
+        const postRef = doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', post.id);
+        const hasLiked = post.likesBy?.includes(user.uid);
+        if (hasLiked) { await updateDoc(postRef, { likes: increment(-1), likesBy: arrayRemove(user.uid) }); }
+        else { await updateDoc(postRef, { likes: increment(1), likesBy: arrayUnion(user.uid) }); }
+    };
+
+    const handleSaveEdit = async (postId) => {
+        if (!editText.trim() || !editTitle.trim()) return;
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', postId), { title: editTitle, content: editText });
+        setEditingId(null); setEditTitle(''); setEditText('');
+    };
+
+    const handleSendReply = async (postId) => {
+        if (!replyText.trim()) return;
+        const replyData = {
+            id: crypto.randomUUID(), authorName: userData.displayName, authorId: user.uid,
+            content: replyText, date: new Date().toISOString()
+        };
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', postId), { replies: arrayUnion(replyData) });
+        setReplyText('');
+    };
+
+    const handleDeleteReply = async (post, replyId) => {
+        if (window.confirm('¿Eliminar respuesta?')) {
+            const updatedReplies = post.replies.filter(r => r.id !== replyId);
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', post.id), { replies: updatedReplies });
+        }
+    };
+
+    const handleSaveReplyEdit = async (post, replyId) => {
+        if (!editReplyText.trim()) return;
+        const updatedReplies = post.replies.map(r => r.id === replyId ? { ...r, content: editReplyText } : r);
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', post.id), { replies: updatedReplies });
+        setEditingReplyId(null); setEditReplyText('');
+    };
+
+    const handleGenerateReply = async () => {
+        setIsGenerating(true);
+        const text = await callGemini(`Responde técnicamente a: "${selectedPost.content}".`);
+        setReplyText(text); setIsGenerating(false);
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto h-full flex flex-col">
+            {!selectedPost ? (
+                <>
+                    <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-slate-800">Foro de la Comunidad</h2><button onClick={() => setIsCreatingPost(true)} className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-slate-800 transition"><Plus size={18} /> Publicar Nuevo Tema</button></div>
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{visibleCategories.map(cat => (<button key={cat.id} onClick={() => setForumCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${forumCategory === cat.id ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'}`}><Icon icon={cat.icon} size={16} /> {cat.label} <span className="ml-2 bg-slate-200 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full">{getCategoryCount(cat.id)}</span></button>))}</div>
+                    {isCreatingPost && (
+                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-6 animate-in fade-in slide-in-from-top-4">
+                            <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-lg">Nuevo Tema en {visibleCategories.find(c => c.id === forumCategory)?.label}</h3><button onClick={() => setIsCreatingPost(false)}><X className="text-slate-400" /></button></div>
+                            <input className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mb-3 font-bold" placeholder="Título del tema..." value={newPostTitle} onChange={(e) => setNewPostTitle(e.target.value)} />
+                            <textarea className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 h-32 resize-none mb-3" placeholder="Escribe tu mensaje..." value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} />
+                            <div className="flex justify-end"><button onClick={handlePostSubmit} disabled={!newPostContent.trim() || !newPostTitle.trim()} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">Publicar</button></div>
+                        </div>
+                    )}
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                        {posts.filter(p => p.category === forumCategory || (!p.category && forumCategory === 'rules')).map(post => (
+                            <div key={post.id} onClick={() => setSelectedPost(post)} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between group">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition">{post.authorName?.charAt(0)}</div>
+                                    <div>
+                                        <h4 className="font-bold text-slate-800 text-base group-hover:text-blue-700 transition">{post.title || "Sin título"}</h4>
+                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                            <span className="font-medium">por {post.authorName}</span>
+                                            <span>•</span>
+                                            <span>{formatDate(post.createdAt)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                    <div className="flex flex-col items-center">
+                                        <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
+                                            {post.replies ? post.replies.length : 0}
+                                        </div>
+                                        <span className="text-[10px] text-slate-400 mt-1 font-medium tracking-wide">Respuestas</span>
+                                    </div>
+                                    <div className="text-slate-300 group-hover:text-blue-500 transition"><ChevronRight size={20} /></div>
+                                </div>
+                            </div>
+                        ))}
+                        {posts.filter(p => p.category === forumCategory || (!p.category && forumCategory === 'rules')).length === 0 && (
+                            <div className="p-8 text-center text-slate-400">No hay temas en esta categoría. ¡Sé el primero!</div>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <div className="animate-in fade-in slide-in-from-right-8 duration-300 pb-20">
+                    <button onClick={() => setSelectedPost(null)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold mb-4 transition"><ChevronLeft size={20} /> Volver al listado</button>
+                    <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 mb-6 relative">
+                        <div className="flex justify-between items-start mb-6 border-b border-slate-100 pb-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-slate-900 mb-2">{selectedPost.title}</h1>
+                                <div className="flex items-center gap-2 text-sm text-slate-500">
+                                    <User size={14} /> <span className="font-bold">{selectedPost.authorName}</span>
+                                    <span>•</span>
+                                    <Clock size={14} /> <span>{formatDate(selectedPost.createdAt)}</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                {(userData.isAdmin || selectedPost.authorId === user.uid) && !editingId && (
+                                    <>
+                                        <button onClick={() => { setEditingId(selectedPost.id); setEditTitle(selectedPost.title); setEditText(selectedPost.content); }} className="p-2 bg-slate-100 hover:bg-blue-100 text-slate-500 hover:text-blue-600 rounded-lg transition"><Pencil size={18} /></button>
+                                        <button onClick={() => handleDeletePost(selectedPost.id)} className="p-2 bg-slate-100 hover:bg-red-100 text-slate-500 hover:text-red-600 rounded-lg transition"><Trash2 size={18} /></button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        {editingId === selectedPost.id ? (
+                            <div className="mb-4">
+                                <input className="w-full p-3 border rounded-xl bg-slate-50 font-bold text-lg mb-2" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                                <textarea className="w-full p-4 border rounded-xl bg-slate-50 h-40 text-base" value={editText} onChange={(e) => setEditText(e.target.value)} />
+                                <div className="flex gap-2 mt-3 justify-end">
+                                    <button onClick={() => setEditingId(null)} className="px-4 py-2 text-slate-500 text-sm font-bold">Cancelar</button>
+                                    <button onClick={() => handleSaveEdit(selectedPost.id)} className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold flex items-center gap-2"><Save size={16} /> Guardar</button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="prose max-w-none text-slate-700 leading-relaxed whitespace-pre-line text-lg mb-8">
+                                {selectedPost.content}
+                            </div>
+                        )}
+                        <div className="flex gap-4"><button onClick={() => handleLikePost(selectedPost)} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition ${selectedPost.likesBy?.includes(user.uid) ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}><ThumbsUp size={18} fill={selectedPost.likesBy?.includes(user.uid) ? "currentColor" : "none"} /> {selectedPost.likes || 0} Me gusta</button></div>
+                    </div>
+                    <h3 className="font-bold text-slate-500 uppercase tracking-wide text-xs mb-4 ml-2">Respuestas ({selectedPost.replies?.length || 0})</h3>
+                    <div className="space-y-4 mb-8">
+                        {selectedPost.replies && selectedPost.replies.map((reply) => (
+                            <div key={reply.id} className="bg-slate-50 p-6 rounded-2xl border border-slate-200/60 relative group">
+                                <div className="flex justify-between items-center mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center font-bold text-xs text-slate-500 border border-slate-200">{reply.authorName.charAt(0)}</div>
+                                        <span className="font-bold text-slate-800 text-sm">{reply.authorName}</span>
+                                        <span className="text-slate-400 text-xs">• {formatDate(reply.date)}</span>
+                                    </div>
+                                    {(userData.isAdmin || reply.authorId === user.uid) && (
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                            {editingReplyId === reply.id ? (
+                                                <button onClick={() => handleSaveReplyEdit(selectedPost, reply.id)} className="text-green-600 hover:bg-green-100 p-1.5 rounded"><Save size={14} /></button>
+                                            ) : (
+                                                <button onClick={() => { setEditingReplyId(reply.id); setEditReplyText(reply.content) }} className="text-slate-400 hover:text-blue-600 p-1.5 rounded hover:bg-blue-50"><Pencil size={14} /></button>
+                                            )}
+                                            <button onClick={() => handleDeleteReply(selectedPost, reply.id)} className="text-slate-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50"><Trash2 size={14} /></button>
+                                        </div>
+                                    )}
+                                </div>
+                                {editingReplyId === reply.id ? (
+                                    <textarea className="w-full p-2 border rounded-lg bg-white text-sm" value={editReplyText} onChange={(e) => setEditReplyText(e.target.value)} />
+                                ) : (
+                                    <p className="text-slate-700 text-sm leading-relaxed pl-8">{reply.content}</p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm sticky bottom-4">
+                        <div className="relative">
+                            <textarea
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 resize-none h-20 mb-2"
+                                placeholder="Escribe una respuesta..."
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                            />
+                            <button onClick={handleGenerateReply} disabled={isGenerating} className="absolute bottom-4 right-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-lg flex items-center gap-1 hover:bg-purple-200 transition">{isGenerating ? <Loader2 className="animate-spin" size={12} /> : <Sparkles size={12} />} IA</button>
+                        </div>
+                        <div className="flex justify-end"><button onClick={() => handleSendReply(selectedPost.id)} className="bg-slate-900 text-white px-4 py-2 rounded-xl flex items-center justify-center hover:bg-slate-800 shadow-lg text-sm font-bold gap-2">Responder <Send size={16} /></button></div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

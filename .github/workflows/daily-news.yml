@@ -1,0 +1,29 @@
+name: Actualización Diaria de Noticias
+
+on:
+  schedule:
+    # Ejecutar cada día a las 08:00 AM UTC (05:00 AM Chile aprox)
+    - cron: '0 8 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+
+jobs:
+  update-news:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v3
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Crear archivo service-account.json
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > scripts/service-account.json
+
+      - name: Ejecutar Robot Actualizador
+        run: node scripts/robot_updater.js
