@@ -105,8 +105,12 @@ export default function Forum({ user, userData, addPoints }) {
     const handleSendReply = async (postId) => {
         if (!replyText.trim()) return;
         const replyData = {
-            id: crypto.randomUUID(), authorName: userData.displayName, authorId: user.uid,
-            content: replyText, date: new Date().toISOString()
+            id: crypto.randomUUID(),
+            authorName: userData.displayName,
+            authorId: user.uid,
+            authorPhoto: userData.photoUrl || '', // Guardamos foto para la UI de participantes
+            content: replyText,
+            date: new Date().toISOString()
         };
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'forum_posts', postId), { replies: arrayUnion(replyData) });
         setReplyText('');
@@ -132,49 +136,115 @@ export default function Forum({ user, userData, addPoints }) {
         setReplyText(text); setIsGenerating(false);
     };
 
+    // Función auxiliar para obtener participantes únicos (limitado a 3)
+    const getParticipantPhotos = (replies) => {
+        if (!replies) return [];
+        const photos = replies.filter(r => r.authorPhoto).map(r => r.authorPhoto);
+        return [...new Set(photos)].slice(0, 3);
+    };
+
     return (
         <div className="max-w-5xl mx-auto h-full flex flex-col">
             {!selectedPost ? (
                 <>
-                    <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-slate-800">Foro de la Comunidad</h2><button onClick={() => setIsCreatingPost(true)} className="bg-slate-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-slate-800 transition"><Plus size={18} /> Publicar Nuevo Tema</button></div>
-                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">{visibleCategories.map(cat => (<button key={cat.id} onClick={() => setForumCategory(cat.id)} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${forumCategory === cat.id ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'}`}><Icon icon={cat.icon} size={16} /> {cat.label} <span className="ml-2 bg-slate-200 text-slate-600 text-[10px] px-1.5 py-0.5 rounded-full">{getCategoryCount(cat.id)}</span></button>))}</div>
+                    <div className="flex justify-between items-center mb-8 pb-4 border-b border-slate-200">
+                        <div>
+                            <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Foros</h2>
+                            <p className="text-slate-500">Comunidad de discusión</p>
+                        </div>
+                        <button onClick={() => setIsCreatingPost(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-slate-800 transition shadow-lg btn-click-effect">
+                            <Pencil size={18} /> Proponer un tema
+                        </button>
+                    </div>
+
+                    <div className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+                        {visibleCategories.map(cat => (
+                            <button key={cat.id} onClick={() => setForumCategory(cat.id)} className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${forumCategory === cat.id ? 'bg-slate-900 text-white shadow-md' : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'}`}>
+                                <Icon icon={cat.icon} size={18} /> {cat.label}
+                                {getCategoryCount(cat.id) > 0 && <span className={`ml-2 text-[10px] px-2 py-0.5 rounded-full ${forumCategory === cat.id ? 'bg-slate-700 text-slate-200' : 'bg-slate-100 text-slate-500'}`}>{getCategoryCount(cat.id)}</span>}
+                            </button>
+                        ))}
+                    </div>
+
                     {isCreatingPost && (
-                        <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-6 animate-in fade-in slide-in-from-top-4">
-                            <div className="flex justify-between items-center mb-4"><h3 className="font-bold text-lg">Nuevo Tema en {visibleCategories.find(c => c.id === forumCategory)?.label}</h3><button onClick={() => setIsCreatingPost(false)}><X className="text-slate-400" /></button></div>
-                            <input className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mb-3 font-bold" placeholder="Título del tema..." value={newPostTitle} onChange={(e) => setNewPostTitle(e.target.value)} />
-                            <textarea className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 h-32 resize-none mb-3" placeholder="Escribe tu mensaje..." value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} />
-                            <div className="flex justify-end"><button onClick={handlePostSubmit} disabled={!newPostContent.trim() || !newPostTitle.trim()} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">Publicar</button></div>
+                        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 mb-8 animate-in fade-in slide-in-from-top-4">
+                            <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                                <h3 className="font-bold text-xl text-slate-800">Nuevo Tema</h3>
+                                <button onClick={() => setIsCreatingPost(false)} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition"><X className="text-slate-500" size={20} /></button>
+                            </div>
+                            <input className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Título del tema..." value={newPostTitle} onChange={(e) => setNewPostTitle(e.target.value)} />
+                            <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 h-40 resize-none mb-4 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Escribe tu mensaje..." value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} />
+                            <div className="flex justify-end"><button onClick={handlePostSubmit} disabled={!newPostContent.trim() || !newPostTitle.trim()} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg">Publicar Tema</button></div>
                         </div>
                     )}
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+
+                    <div className="space-y-4">
                         {posts.filter(p => p.category === forumCategory || (!p.category && forumCategory === 'rules')).map(post => (
-                            <div key={post.id} onClick={() => setSelectedPost(post)} className="p-4 border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600 transition">{post.authorName?.charAt(0)}</div>
-                                    <div>
-                                        <h4 className="font-bold text-slate-800 text-base group-hover:text-blue-700 transition">{post.title || "Sin título"}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                            <span className="font-medium">por {post.authorName}</span>
-                                            <span>•</span>
-                                            <span>{formatDate(post.createdAt)}</span>
+                            <div key={post.id} onClick={() => setSelectedPost(post)} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md cursor-pointer transition group relative overflow-hidden">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition"></div>
+
+                                <div className="flex items-start gap-5">
+                                    {/* Avatar Grande a la Izquierda */}
+                                    <div className="flex-shrink-0">
+                                        <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xl text-slate-500 border-2 border-slate-50 overflow-hidden shadow-sm">
+                                            {post.authorPhoto ? (
+                                                <img src={post.authorPhoto} alt="" className="w-full h-full object-cover" />
+                                            ) : (
+                                                post.authorName?.charAt(0)
+                                            )}
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                    <div className="flex flex-col items-center">
-                                        <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm">
-                                            {post.replies ? post.replies.length : 0}
+
+                                    {/* Contenido Central */}
+                                    <div className="flex-1 min-w-0 pt-1">
+                                        <h4 className="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition leading-tight mb-1">{post.title || "Sin título"}</h4>
+                                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                                            <span className="font-medium text-slate-600">por {post.authorName}</span>
+                                            {post.replies?.length > 0 && (
+                                                <span className="text-slate-300">• último comentario hace {formatDate(new Date(post.replies[post.replies.length - 1].date))}</span>
+                                            )}
+                                            {!post.replies?.length && (
+                                                <span>• {formatDate(post.createdAt)}</span>
+                                            )}
                                         </div>
-                                        <span className="text-[10px] text-slate-400 mt-1 font-medium tracking-wide">Respuestas</span>
                                     </div>
-                                    <div className="text-slate-300 group-hover:text-blue-500 transition"><ChevronRight size={20} /></div>
+
+                                    {/* Métricas y Participantes (Derecha) */}
+                                    <div className="flex flex-col items-end gap-3 self-center">
+                                        <div className="flex items-center gap-3">
+                                            {/* Caras de participantes */}
+                                            {post.replies?.length > 0 && (
+                                                <div className="flex -space-x-2 mr-2">
+                                                    {getParticipantPhotos(post.replies).map((photo, i) => (
+                                                        <div key={i} className="w-6 h-6 rounded-full border border-white overflow-hidden bg-slate-100">
+                                                            <img src={photo} alt="" className="w-full h-full object-cover" />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            <div className="w-10 h-10 rounded-full bg-slate-50 group-hover:bg-blue-50 text-slate-400 group-hover:text-blue-600 flex items-center justify-center font-bold text-sm border border-slate-100 transition">
+                                                {post.replies ? post.replies.length : 0}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-slate-400 bg-slate-50 px-3 py-1 rounded-full text-xs font-bold group-hover:bg-slate-100 transition">
+                                            <MessageSquare size={12} /> Comentar
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
-                        {posts.filter(p => p.category === forumCategory || (!p.category && forumCategory === 'rules')).length === 0 && (
-                            <div className="p-8 text-center text-slate-400">No hay temas en esta categoría. ¡Sé el primero!</div>
-                        )}
                     </div>
+
+                    {posts.filter(p => p.category === forumCategory || (!p.category && forumCategory === 'rules')).length === 0 && (
+                        <div className="py-20 text-center">
+                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
+                                <MessageSquare size={40} />
+                            </div>
+                            <h3 className="text-slate-500 font-medium">No hay temas en esta categoría</h3>
+                            <p className="text-slate-400 text-sm mt-1">Sé el primero en iniciar la conversación.</p>
+                        </div>
+                    )}
                 </>
             ) : (
                 <div className="animate-in fade-in slide-in-from-right-8 duration-300 pb-20">
