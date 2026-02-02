@@ -38,6 +38,12 @@ export default function Forum({ user, userData, addPoints }) {
     const [newPostContent, setNewPostContent] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
+    // Presentation States
+    const [presSpecialty, setPresSpecialty] = useState('Ingeniero Constructor');
+    const [presBackground, setPresBackground] = useState('');
+    const [presTools, setPresTools] = useState('');
+    const [presObjective, setPresObjective] = useState('');
+
     // Edit states
     const [editingId, setEditingId] = useState(null);
     const [editTitle, setEditTitle] = useState('');
@@ -55,23 +61,11 @@ export default function Forum({ user, userData, addPoints }) {
         }
     }, [isStudent]);
 
-    // Aplicar plantilla cuando se abre el modal de creación en Presentaciones
+    // Aplicar título automático para presentaciones
     useEffect(() => {
-        if (isCreatingPost && forumCategory === 'presentations' && !newPostContent) {
-            setNewPostContent(
-                `Hola Colegas,\n\n` +
-                `**Nombre:** ${userData.displayName || '[Tu nombre aquí]'} **Especialidad:** [Ingeniero Constructor, Constructor Civil, Estudiante, Profesor]\n\n` +
-                `**Mi Background:** [Breve descripción de tu trayectoria profesional o académica. Ej: Me dedico a la inspección técnica de obras y actualmente estoy aprendiendo programación para automatizar reportes.]\n\n` +
-                `**Herramientas que domino:**\n\n` +
-                `[Herramienta 1]\n\n` +
-                `[Herramienta 2]\n\n` +
-                `**Objetivo en el foro:** [Ej: Aportar con mis conocimientos en normativa chilena y aprender sobre seguridad informática.]\n\n` +
-                `Un saludo.`
-            );
+        if (isCreatingPost && forumCategory === 'presentations') {
             setNewPostTitle(`Presentación: ${userData.displayName || ''}`);
-        } else if (isCreatingPost && forumCategory !== 'presentations' && newPostContent.startsWith('**Nombre:**')) {
-            // Limpiar si cambia de categoría y tenía la plantilla
-            setNewPostContent('');
+        } else if (isCreatingPost && forumCategory !== 'presentations' && newPostTitle.startsWith('Presentación:')) {
             setNewPostTitle('');
         }
     }, [isCreatingPost, forumCategory, userData]);
@@ -104,15 +98,33 @@ export default function Forum({ user, userData, addPoints }) {
 
     const handlePostSubmit = async (e) => {
         e.preventDefault();
-        if (!newPostContent.trim() || !newPostTitle.trim()) return;
+
+        let finalContent = newPostContent;
+        let finalTitle = newPostTitle;
+
+        if (forumCategory === 'presentations') {
+            if (!presBackground.trim() || !presObjective.trim()) return;
+            finalContent = `Hola Colegas,\n\n` +
+                `**Nombre:** ${userData.displayName}\n` +
+                `**Especialidad:** ${presSpecialty}\n\n` +
+                `**Mi Background:** ${presBackground}\n\n` +
+                `**Herramientas que domino:**\n${presTools}\n\n` +
+                `**Objetivo en el foro:** ${presObjective}\n\n` +
+                `Un saludo.`;
+        } else {
+            if (!newPostContent.trim() || !newPostTitle.trim()) return;
+        }
+
         await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'forum_posts'), {
-            title: newPostTitle, content: newPostContent,
+            title: finalTitle, content: finalContent,
             authorName: userData.displayName, authorRank: userData.rank, authorId: user.uid,
             authorCompany: userData.company, authorPhoto: userData.photoUrl || '',
             category: forumCategory, createdAt: serverTimestamp(), likes: 0, likesBy: [], replies: [],
             isPinned: false
         });
-        setNewPostTitle(''); setNewPostContent(''); setIsCreatingPost(false); await addPoints(10);
+        setNewPostTitle(''); setNewPostContent('');
+        setPresBackground(''); setPresTools(''); setPresObjective('');
+        setIsCreatingPost(false); await addPoints(10);
     };
 
     const handleDeletePost = async (postId) => {
@@ -208,12 +220,54 @@ export default function Forum({ user, userData, addPoints }) {
                     {isCreatingPost && (
                         <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 mb-8 animate-in fade-in slide-in-from-top-4">
                             <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                                <h3 className="font-bold text-xl text-slate-800">Nuevo Tema</h3>
+                                <h3 className="font-bold text-xl text-slate-800">{forumCategory === 'presentations' ? 'Crear Presentación' : 'Nuevo Tema'}</h3>
                                 <button onClick={() => setIsCreatingPost(false)} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition"><X className="text-slate-500" size={20} /></button>
                             </div>
-                            <input className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Título del tema..." value={newPostTitle} onChange={(e) => setNewPostTitle(e.target.value)} />
-                            <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 h-40 resize-none mb-4 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Escribe tu mensaje..." value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} />
-                            <div className="flex justify-end"><button onClick={handlePostSubmit} disabled={!newPostContent.trim() || !newPostTitle.trim()} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg">Publicar Tema</button></div>
+
+                            {forumCategory === 'presentations' ? (
+                                <div className="space-y-4">
+                                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre</label>
+                                        <div className="font-bold text-slate-800">{userData.displayName}</div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Especialidad</label>
+                                        <select className="w-full p-3 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-blue-100 outline-none" value={presSpecialty} onChange={(e) => setPresSpecialty(e.target.value)}>
+                                            <option>Ingeniero Constructor</option>
+                                            <option>Constructor Civil</option>
+                                            <option>Estudiante</option>
+                                            <option>Profesor</option>
+                                            <option>Otro</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mi Background</label>
+                                        <textarea className="w-full p-3 rounded-xl border border-slate-200 bg-white h-24 resize-none focus:ring-2 focus:ring-blue-100 outline-none" placeholder="Breve descripción de tu trayectoria..." value={presBackground} onChange={(e) => setPresBackground(e.target.value)} />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Herramientas que domino</label>
+                                        <textarea className="w-full p-3 rounded-xl border border-slate-200 bg-white h-20 resize-none focus:ring-2 focus:ring-blue-100 outline-none" placeholder="Revit, AutoCAD, Python..." value={presTools} onChange={(e) => setPresTools(e.target.value)} />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Objetivo en el foro</label>
+                                        <textarea className="w-full p-3 rounded-xl border border-slate-200 bg-white h-20 resize-none focus:ring-2 focus:ring-blue-100 outline-none" placeholder="Aportar conocimientos, aprender..." value={presObjective} onChange={(e) => setPresObjective(e.target.value)} />
+                                    </div>
+
+                                    <div className="flex justify-end pt-2">
+                                        <button onClick={handlePostSubmit} disabled={!presBackground.trim() || !presObjective.trim()} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg">Publicar Presentación</button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <>
+                                    <input className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4 font-bold text-lg focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Título del tema..." value={newPostTitle} onChange={(e) => setNewPostTitle(e.target.value)} />
+                                    <textarea className="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 h-40 resize-none mb-4 focus:outline-none focus:ring-2 focus:ring-blue-100" placeholder="Escribe tu mensaje..." value={newPostContent} onChange={(e) => setNewPostContent(e.target.value)} />
+                                    <div className="flex justify-end"><button onClick={handlePostSubmit} disabled={!newPostContent.trim() || !newPostTitle.trim()} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition shadow-lg">Publicar Tema</button></div>
+                                </>
+                            )}
                         </div>
                     )}
 
