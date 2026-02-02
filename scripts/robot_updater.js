@@ -1,22 +1,24 @@
 // -----------------------------------------------------
-// ROBOT ACTUALIZADOR DE CONTENIDOS AIC-UNAB (Versión ES Module)
+// ROBOT ACTUALIZADOR DE CONTENIDOS AIC-UNAB (Versión RSS Real)
 // -----------------------------------------------------
 
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { createRequire } from 'module';
+import Parser from 'rss-parser';
+import crypto from 'crypto';
 
-// Truco para leer el archivo JSON en modo moderno
 const require = createRequire(import.meta.url);
+const parser = new Parser();
+
+// Configuración de Feeds (Google News - Construcción Chile)
+const FEED_URL = 'https://news.google.com/rss/search?q=construccion+chile+when:1d&hl=es-419&gl=CL&ceid=CL:es-419';
 
 let serviceAccount;
 try {
   serviceAccount = require('./service-account.json');
 } catch (e) {
   console.error("❌ ERROR CRÍTICO: No se encontró el archivo 'service-account.json'.");
-  console.error("1. Ve a Firebase Console -> Configuración del proyecto -> Cuentas de servicio.");
-  console.error("2. Genera una nueva clave privada.");
-  console.error("3. Guarda el archivo descargado en la carpeta 'scripts' con el nombre 'service-account.json'.");
   process.exit(1);
 }
 
@@ -28,92 +30,60 @@ initializeApp({
 const db = getFirestore();
 const appId = 'aic_unab_portal_v1';
 
-// --- DATOS NUEVOS A INYECTAR ---
-
-const NOTICIAS_FRESCAS = [
-  {
-    id: Date.now().toString(),
-    source: 'CChC',
-    category: 'Informe',
-    title: 'Informe MACh: Inversión en infraestructura pública crecería 5% este año',
-    date: new Date().toLocaleDateString('es-CL'),
-    url: 'https://cchc.cl',
-    type: 'news',
-    timestamp: FieldValue.serverTimestamp()
-  },
-  {
-    id: (Date.now() + 1).toString(),
-    source: 'MOP',
-    category: 'Vialidad',
-    title: 'Se aprueba trazado definitivo para nueva autopista orbital',
-    date: new Date().toLocaleDateString('es-CL'),
-    url: 'https://mop.cl',
-    type: 'news',
-    timestamp: FieldValue.serverTimestamp()
-  },
-  {
-    id: (Date.now() + 2).toString(),
-    source: 'Diario Financiero',
-    category: 'Mercado',
-    title: `Resumen de mercados: ${new Date().toLocaleDateString('es-CL')}`,
-    date: 'Hace 1 hora',
-    url: 'https://df.cl',
-    type: 'news',
-    timestamp: FieldValue.serverTimestamp()
-  }
-];
-
-const LICITACIONES_NUEVAS = [
-  {
-    id: '5501-15-LR26',
-    title: 'Reposición Hospital de Alta Complejidad Zona Norte',
-    region: 'Metropolitana',
-    amount: '2.500.000 UTM',
-    closingDate: '30/12/2026',
-    type: 'tender',
-    url: 'https://mercadopublico.cl'
-  },
-  {
-    id: '3320-05-LP26',
-    title: 'Pavimentación Básica Ruta J-60, Tramo Costa',
-    region: 'Maule',
-    amount: '45.000 UTM',
-    closingDate: '15/10/2026',
-    type: 'tender',
-    url: 'https://mercadopublico.cl'
-  }
-];
+function generateId(text) {
+  return crypto.createHash('md5').update(text).digest('hex');
+}
 
 async function ejecutarRobot() {
-  console.log('🤖 Robot iniciado. Conectando a la base de datos AIC-UNAB...');
+  console.log('🤖 Robot iniciado. Conectando a RSS de Google News...');
 
-  const batch = db.batch();
-  const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('market_news');
-
-  // 1. Agregar Noticias
-  console.log('📰 Procesando noticias...');
-  NOTICIAS_FRESCAS.forEach(noticia => {
-    const docRef = collectionRef.doc(noticia.id);
-    batch.set(docRef, noticia);
-    console.log(`   + Agregando: ${noticia.title}`);
-  });
-
-  // 2. Agregar Licitaciones
-  console.log('🏗️ Procesando licitaciones...');
-  LICITACIONES_NUEVAS.forEach(licitacion => {
-    const docRef = collectionRef.doc(licitacion.id);
-    // Añadimos timestamp manualmente aquí para las licitaciones también
-    batch.set(docRef, { ...licitacion, timestamp: FieldValue.serverTimestamp() });
-    console.log(`   + Agregando: ${licitacion.title}`);
-  });
-
-  // 3. Enviar todo a la nube
   try {
-    await batch.commit();
-    console.log('✅ ¡Éxito! La base de datos ha sido actualizada.');
-    console.log('   Ve a tu página web y recárgala para ver los cambios.');
+    const feed = await parser.parseURL(FEED_URL);
+    console.log(`📡 Feed obtenido: ${feed.title}`);
+
+    const batch = db.batch();
+    const collectionRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('market_news');
+
+    let count = 0;
+
+    // Procesar las primeras 10 noticias
+    for (const item of feed.items.slice(0, 10)) {
+      const uniqueId = generateId(item.link); // ID basado en URL para evitar duplicados
+
+      // Intentar rescatar una imagen del contenido si existe, sino usar una genérica
+      let imageUrl = null;
+      if (item.content && item.content.includes('<img')) {
+        const imgMatch = item.content.match(/src="([^"]+)"/);
+        if (imgMatch) imageUrl = imgMatch[1];
+      }
+
+      const noticia = {
+        id: uniqueId,
+        source: item.creator || item.source || 'Google News',
+        category: 'Construcción',
+        title: item.title,
+        date: new Date(item.pubDate).toLocaleDateString('es-CL'),
+        url: item.link,
+        image: imageUrl, // Nuevo campo de imagen
+        type: 'news',
+        timestamp: FieldValue.serverTimestamp() // Timestamp de guardado
+      };
+
+      const docRef = collectionRef.doc(uniqueId);
+      batch.set(docRef, noticia, { merge: true }); // Merge evita borrar campos si existieran, y el ID único evita duplicados visuales
+      console.log(`   + Preparando: ${item.title.substring(0, 50)}...`);
+      count++;
+    }
+
+    if (count > 0) {
+      await batch.commit();
+      console.log(`✅ ¡Éxito! Se actualizaron ${count} noticias.`);
+    } else {
+      console.log('⚠️ No se encontraron noticias nuevas.');
+    }
+
   } catch (error) {
-    console.error('❌ Error al actualizar:', error);
+    console.error('❌ Error al procesar RSS:', error);
   }
 
   process.exit();

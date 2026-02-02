@@ -22,10 +22,24 @@ export default function Dashboard({ userData, economicIndicators, marketNews }) 
                         <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Globe size={20} className="text-blue-600" /> Noticias del Rubro</h3>
                         <div className="space-y-4">
                             {marketNews.map((news, i) => (
-                                <a key={i} href={news.url} target="_blank" rel="noopener noreferrer" className="block border-b border-slate-100 pb-4 last:border-0 last:pb-0 hover:bg-slate-50 p-2 -mx-2 rounded transition cursor-pointer group">
-                                    <div className="flex justify-between items-start mb-1"><span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{news.category}</span><span className="text-xs text-slate-400">{news.date}</span></div>
-                                    <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition">{news.title}</h4>
-                                    <div className="flex items-center gap-1 mt-1 text-xs text-slate-400"><span>Fuente: {news.source}</span><ExternalLink size={10} /></div>
+                                <a key={i} href={news.url} target="_blank" rel="noopener noreferrer" className="flex gap-4 border-b border-slate-100 pb-4 last:border-0 last:pb-0 hover:bg-slate-50 p-2 -mx-2 rounded transition cursor-pointer group">
+                                    { /* Imagen de la noticia (si existe) */}
+                                    {news.image && (
+                                        <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100">
+                                            <img src={news.image} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{news.category}</span>
+                                            <span className="text-xs text-slate-400">{news.date}</span>
+                                        </div>
+                                        <h4 className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition line-clamp-2">{news.title}</h4>
+                                        <div className="flex items-center gap-1 mt-1 text-xs text-slate-400">
+                                            <span className="truncate max-w-[150px]">Fuente: {news.source}</span>
+                                            <ExternalLink size={10} />
+                                        </div>
+                                    </div>
                                 </a>
                             ))}
                         </div>
