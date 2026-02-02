@@ -23,6 +23,7 @@ export default function LandingPage({ onLoginSuccess }) {
             if (authMode === 'login') {
                 await signInWithEmailAndPassword(auth, regEmail, regPassword);
             } else if (authMode === 'register') {
+                auth.languageCode = 'es'; // Forzar español
                 const cred = await createUserWithEmailAndPassword(auth, regEmail, regPassword);
                 const fullName = `${regName} ${regSurname}`;
 

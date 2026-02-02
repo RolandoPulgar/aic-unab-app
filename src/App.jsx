@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, sendEmailVerification } from 'firebase/auth';
 import {
   collection, onSnapshot, query, orderBy,
   doc, getDoc, updateDoc, where, increment
@@ -138,6 +138,17 @@ function AppContent() {
             <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition">
               Ya verifiqué mi correo
             </button>
+            <button onClick={async () => {
+              try {
+                auth.languageCode = 'es'; // Forzar español
+                await sendEmailVerification(user);
+                alert('Correo reenviado. Revisa tu bandeja de Spam.');
+              } catch (e) {
+                alert('Error al reenviar (espera unos minutos): ' + e.message);
+              }
+            }} className="w-full bg-blue-50 text-blue-600 font-bold py-3 rounded-xl hover:bg-blue-100 transition">
+              Reenviar correo
+            </button>
             <button onClick={logout} className="w-full text-slate-400 font-bold py-2 hover:text-slate-600 transition">
               Cerrar Sesión
             </button>
@@ -163,10 +174,11 @@ function AppContent() {
         setMobileMenuOpen={setMobileMenuOpen}
         view={view}
         setView={setView}
+        userData={userData}
         logout={logout}
       />
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen bg-slate-50 relative">
+      <main className="flex-1 p-4 md:p-8 bg-slate-50 relative">
         {showProfileModal && (
           <ProfileModal
             userData={userData}
