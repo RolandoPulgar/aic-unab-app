@@ -376,8 +376,17 @@ export default function Forum({ user, userData, addPoints }) {
                                 </div>
                             </div>
                         ) : (
-                            <div className="prose max-w-none text-slate-700 leading-relaxed whitespace-pre-line text-lg mb-8">
-                                {selectedPost.content}
+                            <div className="prose max-w-none text-slate-700 leading-relaxed text-lg mb-8">
+                                {selectedPost.content.split('\n').map((line, i) => (
+                                    <p key={i} className="min-h-[1.5em] mb-1">
+                                        {line.split(/(\*\*.*?\*\*)/).map((part, index) => {
+                                            if (part.startsWith('**') && part.endsWith('**')) {
+                                                return <strong key={index} className="text-slate-900">{part.slice(2, -2)}</strong>;
+                                            }
+                                            return <span key={index}>{part}</span>;
+                                        })}
+                                    </p>
+                                ))}
                             </div>
                         )}
                         <div className="flex gap-4"><button onClick={() => handleLikePost(selectedPost)} className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition ${selectedPost.likesBy?.includes(user.uid) ? 'bg-blue-50 text-blue-600' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}><ThumbsUp size={18} fill={selectedPost.likesBy?.includes(user.uid) ? "currentColor" : "none"} /> {selectedPost.likes || 0} Me gusta</button></div>
