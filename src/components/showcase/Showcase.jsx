@@ -104,12 +104,30 @@ export default function Showcase({ userData, showcaseItems = [] }) {
                                     {activeTab === 'services' ? 'Nombre de Fantasía / Empresa' : 'Título del Aviso'}
                                 </label>
                                 <input className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 font-bold focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                    value={title} onChange={e => setTitle(e.target.value)} placeholder={activeTab === 'services' ? "Ej: Constructora Pulgar SpA" : "Ej: Se busca Jefe de Obra"} />
+                                    value={title} onChange={e => setTitle(e.target.value)} placeholder={activeTab === 'services' ? "Ej: Constructora AIC SpA" : "Ej: Se busca Jefe de Obra"} />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">URL Imagen (Logo/Foto)</label>
-                                <input className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                                    value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://..." />
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Imagen (Logo/Foto) - Max 1MB</label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="w-full bg-slate-50 p-2 rounded-xl border border-slate-200 text-sm focus:outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                if (file.size > 1024 * 1024) {
+                                                    alert("La imagen es muy pesada (Max 1MB)");
+                                                    return;
+                                                }
+                                                const reader = new FileReader();
+                                                reader.onloadend = () => setImageUrl(reader.result);
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                    />
+                                    {imageUrl && <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 shrink-0"><img src={imageUrl} className="w-full h-full object-cover" /></div>}
+                                </div>
                             </div>
                         </div>
 
