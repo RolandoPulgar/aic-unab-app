@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Plus, X, ChevronRight, ChevronLeft, User, Clock,
     Pencil, Trash2, Save, ThumbsUp, Send, Sparkles, Loader2,
-    ScrollText, Briefcase, FileQuestion, GraduationCap
+    ScrollText, Briefcase, FileQuestion, GraduationCap, MessageSquare
 } from 'lucide-react';
 import {
     collection, addDoc, onSnapshot, query, orderBy,
