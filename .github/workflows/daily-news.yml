@@ -19,7 +19,7 @@ jobs:
           node-version: '18'
 
       - name: Instalar dependencias
-        run: npm ci
+        run: npm ci --omit=dev
 
       - name: Crear archivo service-account.json
         run: |
