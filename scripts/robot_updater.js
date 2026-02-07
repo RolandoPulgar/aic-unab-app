@@ -19,7 +19,7 @@ let serviceAccount;
 try {
   serviceAccount = require('./service-account.json');
 } catch (e) {
-  console.error("❌ ERROR CRÍTICO: No se encontró el archivo 'service-account.json'.");
+  console.error("❌ ERROR CRÍTICO AL CARGAR CONFIGURACIÓN:", e);
   process.exit(1);
 }
 
