@@ -16,11 +16,25 @@ const parser = new Parser();
 const FEED_URL = 'https://news.google.com/rss/search?q=construccion+chile+when:1d&hl=es-419&gl=CL&ceid=CL:es-419';
 
 let serviceAccount;
-try {
-  serviceAccount = require('./service-account.json');
-} catch (e) {
-  console.error("❌ ERROR CRÍTICO AL CARGAR CONFIGURACIÓN:", e);
-  process.exit(1);
+
+// Intenta cargar desde variable de entorno (para GitHub Actions)
+if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+  try {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    console.log("✅ Configuración cargada desde variable de entorno.");
+  } catch (e) {
+    console.error("❌ ERROR: La variable de entorno FIREBASE_SERVICE_ACCOUNT_JSON no es un JSON válido.", e);
+    process.exit(1);
+  }
+} else {
+  // Fallback a archivo local (para desarrollo)
+  try {
+    serviceAccount = require('./service-account.json');
+    console.log("✅ Configuración cargada desde archivo local.");
+  } catch (e) {
+    console.error("❌ ERROR CRÍTICO AL CARGAR CONFIGURACIÓN:", e);
+    process.exit(1);
+  }
 }
 
 // Inicializar Firebase Admin

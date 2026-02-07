@@ -21,23 +21,7 @@ jobs:
       - name: Instalar dependencias
         run: npm ci --omit=dev
 
-      - name: Crear archivo service-account.json
-        run: |
-          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" > scripts/service-account.json
-      
-      - name: Debug - Listar archivos
-        run: ls -R scripts/
-
-      - name: Debug - Verificar archivo service account
-        run: |
-          if [ -s scripts/service-account.json ]; then
-            echo "✅ El archivo service-account.json existe y tiene contenido."
-            cat scripts/service-account.json | head -c 20
-            echo "..."
-          else
-            echo "❌ El archivo service-account.json NO existe o está vacío."
-            exit 1
-          fi
-
       - name: Ejecutar Robot Actualizador
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: node scripts/robot_updater.js
